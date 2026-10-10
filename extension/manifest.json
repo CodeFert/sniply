@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Sniply",
+  "version": "3.0.0",
+  "description": "Reusable fields, visual rules, shared values and contextual snippet expansion.",
+  "permissions": [
+    "storage",
+    "clipboardRead"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_title": "Open Sniply"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "options_page": "dashboard/index.html"
+}

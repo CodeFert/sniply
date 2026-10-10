@@ -1,0 +1,10 @@
+import { build } from 'esbuild';
+import { mkdir, cp, writeFile, rm } from 'node:fs/promises';
+await rm('extension/dashboard',{recursive:true,force:true});
+await mkdir('extension/dashboard',{recursive:true});
+await cp('dist','extension/dashboard',{recursive:true});
+await build({entryPoints:['extension/runtime.js'],outfile:'extension/content.js',bundle:true,format:'iife',target:'chrome110',minify:true});
+const manifest={manifest_version:3,name:'Sniply',version:'3.0.0',description:'Reusable fields, visual rules, shared values and contextual snippet expansion.',permissions:['storage','clipboardRead'],host_permissions:['<all_urls>'],action:{default_title:'Open Sniply'},background:{service_worker:'background.js'},content_scripts:[{matches:['<all_urls>'],js:['content.js'],run_at:'document_idle',all_frames:true}],options_page:'dashboard/index.html'};
+await writeFile('extension/manifest.json',JSON.stringify(manifest,null,2));
+await writeFile('extension/background.js','chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());\n');
+console.log('Extension dashboard and content engine built. Load the extension folder in Chrome to test.');
