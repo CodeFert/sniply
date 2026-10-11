@@ -231,12 +231,12 @@ function evalCmd(n, ctx) {
   if (["formtext", "formparagraph", "formmenu", "formdate"].includes(n.name)) {
     const id = set.named.name || Object.keys(ctx.fields)[0] || "";
     const v = ctx.fields[id];
-    return v == null || v === "" ? set.named.default || "" : Array.isArray(v) ? v.join(", ") : nameDate(v, n.name, set);
+    return v == null ? set.named.default || "" : Array.isArray(v) ? v.join(", ") : nameDate(v, n.name, set);
   }
   if (n.name === "site") {
-    const p = (set.positional[0] || "url").toLowerCase();
+    const p = set.positional[0] || "url";
     const site = ctx.site || {};
-    return site[p] || (p === "domain" ? site.domain : site.url) || "";
+    return site[p] ?? "";
   }
   if (n.name === "field") return ctx.fields?.[set.positional[0]] ?? "";
   if (n.name === "value") return ctx.values?.[set.positional[0]] ?? "";

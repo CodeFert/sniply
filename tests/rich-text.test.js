@@ -162,3 +162,46 @@ test('rich preview can identify the source command without rendering injected HT
  const html=richPreview({richContent:editor.getHTML()},{...context,fields:{person:'<script>bad</script>'}},true);
  assert.match(html,/data-source=/);assert.doesNotMatch(html,/<script>/);editor.destroy();
 });
+const {nodeEventHandled}=await import('../src/nodeInteractions.js');
+globalThis.requestAnimationFrame=cb=>setTimeout(cb,0);
+globalThis.innerHeight=900;globalThis.innerWidth=1400;
+window.Range.prototype.getClientRects=()=>[];
+window.Range.prototype.getBoundingClientRect=()=>({top:0,left:0,right:0,bottom:0,width:0,height:0});
+test('command context menu copies settings and deletes with undo',async()=>{
+ let copied='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{copied=text;}}});
+ const syntax='{formtext: name=person; default=Jordan}';
+ const editor=new Editor({extensions:[StarterKit,CommandNode],content:commandHTML(`<p>Hi ${syntax}!</p>`)});
+ const chip=editor.view.dom.querySelector('.snippet-command');assert.equal(chip.draggable,true);
+ chip.dispatchEvent(new window.MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:30,clientY:40}));
+ assert.equal(document.querySelector('[role=menu]').getAttribute('aria-label'),'Command actions');
+ [...document.querySelectorAll('[role=menuitem]')].find(b=>b.textContent==='Copy command').click();
+ await new Promise(r=>setTimeout(r,0));assert.equal(copied,syntax);assert.equal(document.querySelector('[role=menu]'),null);
+ chip.dispatchEvent(new window.MouseEvent('contextmenu',{bubbles:true,cancelable:true}));
+ [...document.querySelectorAll('[role=menuitem]')].find(b=>b.textContent==='Delete command').click();
+ assert.equal(editor.getText(),'Hi !');editor.commands.undo();assert.equal(editor.getText(),`Hi ${syntax}!`);
+ await new Promise(r=>setTimeout(r,5));editor.destroy();
+});
+test('native drag and drop moves a chip without duplicating it',()=>{
+ const syntax='{cursor}';const editor=new Editor({extensions:[StarterKit,CommandNode],content:commandHTML(`<p>A ${syntax} B</p>`)});
+ const chip=editor.view.dom.querySelector('.snippet-command');
+ editor.view.posAtCoords=()=>({pos:3,inside:-1});
+ const data={};const transfer={files:[],clearData(){},setData(k,v){data[k]=v;},getData(k){return data[k]||'';},effectAllowed:'',dropEffect:''};
+ const drag=new window.Event('dragstart',{bubbles:true,cancelable:true});Object.defineProperty(drag,'dataTransfer',{value:transfer});chip.dispatchEvent(drag);
+ assert.ok(editor.view.dragging);assert.ok(editor.view.dragging.move);assert.match(data['text/html'],/data-command/);
+ editor.view.posAtCoords=()=>({pos:6,inside:-1});
+ const drop=new window.Event('drop',{bubbles:true,cancelable:true});Object.defineProperty(drop,'dataTransfer',{value:transfer});Object.defineProperty(drop,'clientX',{value:50});Object.defineProperty(drop,'clientY',{value:50});editor.view.dom.dispatchEvent(drop);
+ assert.equal(editor.getText(),`A  B${syntax}`);editor.commands.undo();assert.equal(editor.getText(),`A ${syntax} B`);editor.destroy();
+});
+test('conditional headers offer the same actions and dismiss with Escape',()=>{
+ const editor=new Editor({extensions:[StarterKit,ConditionalNode],content:{type:'doc',content:[{type:'conditionalSection',attrs:{rules:[{field:'qty',operator:'>',value:'2'}],mode:'all'},content:[{type:'paragraph',content:[{type:'text',text:'Details'}]}]}]}});
+ const bar=editor.view.dom.querySelector('.condition-bar');assert.equal(bar.draggable,true);
+ bar.dispatchEvent(new window.KeyboardEvent('keydown',{key:'F10',shiftKey:true,bubbles:true,cancelable:true}));assert.ok(document.querySelector('[role=menu]'));
+ document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));assert.equal(document.querySelector('[role=menu]'),null);
+ for(const type of ['dragstart','dragover','drop','mousedown'])assert.equal(nodeEventHandled({type}),false);
+ editor.destroy();
+});
+test('plain clipboard fallback pastes a command as an editable chip',()=>{
+ const syntax='{formtext: name=person; default=Jordan}';const editor=new Editor({extensions:[StarterKit,CommandNode],content:'<p></p>'});
+ const event=new window.Event('paste',{bubbles:true,cancelable:true});Object.defineProperty(event,'clipboardData',{value:{getData:type=>type==='text/plain'?syntax:''}});editor.view.dom.dispatchEvent(event);
+ assert.equal(editor.getJSON().content[0].content[0].type,'snippetCommand');assert.equal(editor.getText(),syntax);editor.destroy();
+});

@@ -27,7 +27,7 @@ export const COMMAND_SPECS = {
  'Import snippet': { kind:'import', fields:[field('snippet','Snippet to include','snippet',{required:true})] },
  'Snippet properties': { kind:'snippet', defaults:{property:'shortcut'}, fields:[field('property','Information to insert','select',{options:[['shortcut','Shortcut'],['label','Label'],['id','Snippet ID']]})] },
  'Note': { kind:'note', fields:[field('body','Editor note','textarea',{required:true})], help:'Visible while editing. This note is not inserted when the snippet expands.' },
- 'Website': { kind:'site', defaults:{property:'domain'}, fields:[field('property','Page information','select',{options:[['domain','Website domain'],['url','Full page address'],['path','Page path'],['title','Page title']]})] },
+ 'Website': { kind:'site', defaults:{property:'domain'}, fields:[field('property','Page information','select',{options:[['domain','Website domain'],['url','Full page address'],['path','Page path'],['title','Page title'],['selection','Selected text']]})] },
 };
 const byKind = Object.fromEntries(Object.entries(COMMAND_SPECS).map(([label,spec])=>[spec.kind,label]));
 export const escapeSetting = value => String(value ?? '').replace(/[\\{};="']/g, '\\$&');

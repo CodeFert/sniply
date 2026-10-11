@@ -20,7 +20,8 @@ export function richPreview(snippet, context, trace = false) {
       }
       if (node.hasAttribute("data-conditional")) {
         let rules=[];try{rules=JSON.parse(node.getAttribute("data-rules")||'[]');}catch{}
-        return `{if: ${ruleExpression(rules,node.getAttribute("data-mode"))}}` + [...node.childNodes].map(walk).join('') + '{endif}';
+        const syntax=`{if: ${ruleExpression(rules,node.getAttribute("data-mode"))}}`;
+        return syntax + (trace?token(`<div class="output-source" data-source="${escapeHTML(syntax+'{endif}')}" title="Click to explain this section">`):'') + [...node.childNodes].map(walk).join('') + (trace?token('</div>'):'') + '{endif}';
       }
       const clone = node.cloneNode(false);
       const outer = clone.outerHTML;

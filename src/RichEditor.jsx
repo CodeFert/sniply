@@ -12,7 +12,7 @@ import DOMPurify from "dompurify";
 import { Bold, Italic, Underline as UnderlineIcon, Strikethrough, Link as LinkIcon, Unlink, AlignLeft, AlignCenter, AlignRight, List, ListOrdered, Undo2, Redo2, RemoveFormatting, Highlighter, Trash2 } from "lucide-react";
 import { ConditionalNode } from "./ConditionalNode.js";
 import RuleDialog from "./RuleDialog.jsx";
-import { nodePlain } from "./workflows.js";
+import { nodePlain, ruleExpression } from "./workflows.js";
 import { CommandNode, commandHTML } from "./CommandNode.js";
 import CommandDialog from "./CommandDialog.jsx";
 import { fieldsFor } from "./engine.js";
@@ -21,7 +21,7 @@ import { readCommand } from "./commandModel.js";
 import { escapeHTML } from "./richText.js";
 import { plainHTML } from "./richText.js";
 
-const RichEditor = forwardRef(function RichEditor({ snippet, snippets, fields = [], sharedValues = [], answers = {}, onChange, onDelete }, ref) {
+const RichEditor = forwardRef(function RichEditor({ snippet, snippets, fields = [], sharedValues = [], pageMappings = [], answers = {}, onChange, onDelete }, ref) {
   const [condition, setCondition] = useState(null);
   const [command, setCommand] = useState(null);
   const [linkOpen, setLinkOpen] = useState(false);
@@ -37,7 +37,7 @@ const RichEditor = forwardRef(function RichEditor({ snippet, snippets, fields = 
   });
   useImperativeHandle(ref, () => ({
     editCommand: syntax => { let pos=null;editor.state.doc.descendants((node,p)=>{if(pos===null&&node.type.name==='snippetCommand'&&node.attrs.syntax===syntax)pos=p;});const parsed=readCommand(syntax);if(pos!==null&&parsed)setCommand({...parsed,pos}); },
-    focusCommand: syntax => { let pos=null;editor.state.doc.descendants((node,p)=>{if(pos===null&&node.type.name==='snippetCommand'&&node.attrs.syntax===syntax)pos=p;});if(pos!==null)editor.chain().focus().setNodeSelection(pos).scrollIntoView().run(); },
+    focusCommand: syntax => { let pos=null;editor.state.doc.descendants((node,p)=>{if(pos===null&&(node.type.name==='snippetCommand'&&node.attrs.syntax===syntax||node.type.name==='conditionalSection'&&`{if: ${ruleExpression(node.attrs.rules,node.attrs.mode)}}{endif}`===syntax))pos=p;});if(pos!==null)editor.chain().focus().setNodeSelection(pos).scrollIntoView().run(); },
     reuse: name => editor.chain().focus().insertContent({type:'snippetCommand',attrs:{syntax:`{field: ${name}}`}}).run(),
     insert: label => { const { from, to } = editor.state.selection; const base = COMMAND_SPECS[label]?.defaults?.name;
       const existing = new Set(fieldsFor(editor.getText()).map(f => f.name));
@@ -89,7 +89,7 @@ const RichEditor = forwardRef(function RichEditor({ snippet, snippets, fields = 
     </div>
     <div className="sheet"><EditorContent editor={editor} /></div>
     {condition && <RuleDialog fields={[...fields,...sharedValues.map(v=>({name:v.key,label:v.key}))]} initial={condition.rules ? condition : null} onCancel={()=>setCondition(null)} onSave={attrs=>{if(condition.pos!=null)editor.chain().focus().setNodeSelection(condition.pos).updateAttributes('conditionalSection',attrs).run();else editor.chain().focus().setTextSelection(condition.selection).wrapIn('conditionalSection',attrs).run();setCondition(null);}} onRemove={condition.pos!=null?()=>{editor.chain().focus().setTextSelection(condition.pos+1).lift('conditionalSection').run();setCondition(null);}:undefined} />}
-    {command && <CommandDialog key={`${command.label}-${command.pos ?? "new"}`} fields={fields} sharedValues={sharedValues} answers={answers} label={command.label} initial={command.values} defaults={command.suggested} snippets={snippets.filter(s => s.id !== snippet.id)} onCancel={() => { setCommand(null); editor.commands.focus(); }} onSave={syntax => {
+    {command && <CommandDialog key={`${command.label}-${command.pos ?? "new"}`} fields={fields} sharedValues={sharedValues} pageMappings={pageMappings} answers={answers} label={command.label} initial={command.values} defaults={command.suggested} snippets={snippets.filter(s => s.id !== snippet.id)} onCancel={() => { setCommand(null); editor.commands.focus(); }} onSave={syntax => {
       const range = command.pos != null ? { from: command.pos, to: command.pos + 1 } : { from: command.from, to: command.to };
       editor.chain().focus().insertContentAt(range, { type: "snippetCommand", attrs: { syntax } }).run();
       setCommand(null);

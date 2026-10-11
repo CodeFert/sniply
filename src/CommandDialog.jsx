@@ -4,7 +4,7 @@ import { ref, datePreset } from './workflows.js';
 import { COMMAND_SPECS, buildCommand } from './commandModel.js';
 import CommandIcon from './CommandIcon.jsx';
 import { COMMANDS } from './data.js';
-export default function CommandDialog({ label, initial, defaults, snippets, fields = [], sharedValues = [], answers = {}, onSave, onCancel, onRemove }) {
+export default function CommandDialog({ label, initial, defaults, snippets, fields = [], sharedValues = [], pageMappings = [], answers = {}, onSave, onCancel, onRemove }) {
  const spec=COMMAND_SPECS[label];
  const [values,setValues]=useState(()=>({...spec.defaults,...defaults,...initial}));
  const exampleContext={fields:answers,vars:Object.fromEntries(sharedValues.map(v=>[v.key,v.value])),errors:[]};
@@ -26,6 +26,7 @@ export default function CommandDialog({ label, initial, defaults, snippets, fiel
       if(f.type==='checkbox')return <label className="check-field" key={f.key}><input type="checkbox" checked={!!values[f.key]} onChange={e=>set(f.key,e.target.checked)} />{f.label}</label>;
       if(f.type==='options')return <fieldset className="choice-builder" key={f.key}><legend>Choices <small>— select the default</small></legend>{(values.options||[]).map((option,i)=><div className="choice-row" key={i}><input type="radio" name="default-choice" aria-label={`Default choice ${i+1}`} checked={values.default===option} onChange={()=>set('default',option)} /><input aria-label={`Choice ${i+1}`} required value={option} onChange={e=>{const next=[...values.options];next[i]=e.target.value;setValues(v=>({...v,options:next,default:v.default===option?e.target.value:v.default}));}} /><button type="button" aria-label={`Remove choice ${i+1}`} disabled={values.options.length<=1} onClick={()=>setValues(v=>({...v,options:v.options.filter((_,n)=>n!==i),default:v.default===option?'':v.default}))}>×</button></div>)}<div className="choice-actions"><button type="button" className="ghost" onClick={()=>set('options',[...values.options,''])}>+ Add choice</button><button type="button" className="ghost" onClick={()=>set('default','')}>No default</button></div></fieldset>;
       let options=f.type==='existingField'?fields.map(f=>[f.name,f.label||f.name]):f.type==='sharedValue'?sharedValues.map(v=>[v.key,`${v.key} — ${v.value}`]):f.type==='snippet'?snippets.map(s=>[s.shortcut,`${s.label} (${s.shortcut})`]):f.options;
+      if(label==='Website'&&f.key==='property')options=[...options,...[...new Set(pageMappings.map(m=>m.key))].map(key=>['mapped:'+key,'Page value: '+key])];
       return <label className="field parameter-field" key={f.key}><span>{f.label}{f.required?' *':''}</span>
         {f.type==='textarea'?<textarea rows={4} required={f.required} value={values[f.key]||''} onChange={e=>set(f.key,e.target.value)} />:
         options?<select required={f.required} value={values[f.key]??''} onChange={e=>set(f.key,e.target.value)}>{['snippet','existingField','sharedValue'].includes(f.type)&&<option value="">Choose an item</option>}{options.map(o=>{const [value,text]=Array.isArray(o)?o:[o,o];return <option key={value} value={value}>{f.key==='format' && label.includes('Date/Time') ? formatTime(new Date(), value) : text}</option>;})}</select>:
